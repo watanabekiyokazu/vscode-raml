@@ -21,6 +21,8 @@ function createTempFile(text, callback) {
     });
 }
 
+var ramlPreviewPanels = {}
+
 exports.showPreview = function () {
     var document = vscode.window.activeTextEditor.document;
 
@@ -40,7 +42,7 @@ exports.showPreview = function () {
 
         //no need to show the version in vscode
         //vscode.window.showInformationMessage(`Using raml2html ${version}`);
-        console.log(`raml2html version being used: ${version}`);
+        //console.log(`raml2html version being used: ${version}`);
 
         function createRaml2HtmlAndShowIt() {
             exec(createRaml2Html, function (err, result) {
@@ -49,33 +51,23 @@ exports.showPreview = function () {
                     return;
                 }
 
-                createTempFile(result, (err) => {
-                    if (err) {
-                        vscode.window.showErrorMessage(err.toString());
-                        throw err;
-                    }
 
-                    var isWindows = /^win/.test(process.platform);
-                    var tmpFilePath = isWindows ? `file:///${filePath}` : `file://${filePath}`;
-
-                    let uri = vscode.Uri.parse(tmpFilePath);
-                    try {
-                        vscode.commands.executeCommand(
-                            "vscode.previewHtml",
-                            uri,
-                            vscode.window.activeTextEditor.viewColumn,
-                            "RAML Preview"
-                        );
-                    } catch (error) {
-                        console.error(error);
-                    }
-
-                    //shows file URI 
-                    vscode.window.showInformationMessage(tmpFilePath);
-                });
+                panel = ramlPreviewPanels[vscode.window.activeTextEditor.id];
+                if (!panel || panel._store._isDisposed){
+                    panel = vscode.window.createWebviewPanel(
+                        'ramlPreview',
+                        'RAML Preview',
+                        vscode.ViewColumn.Beside,
+                        {
+                            enableScripts: true,
+                        }
+                    );
+                    ramlPreviewPanels[vscode.window.activeTextEditor.id] = panel;
+                }
+                panel.webview.html = result;
             });
         }
-
+        
         var createRaml2Html = `raml2html --template ${templatesFolder}/${previewTheme}.nunjucks ${document.uri.fsPath}`;
 
         var isNotASavedFile = /^Untitled-/.test(document.fileName);
@@ -96,12 +88,12 @@ exports.showPreview = function () {
 };
 
 exports.cleanUp = function () {
-    console.log("Cleaning up tmp folder...");
+    // console.log("Cleaning up tmp folder...");
 
-    fs.emptyDir(tempFolder, (errorFilesDeletion) => {
-        if (errorFilesDeletion) {
-            vscode.window.showErrorMessage(errorFilesDeletion.toString());
-            throw errorFilesDeletion;
-        }
-    })
+    // fs.emptyDir(tempFolder, (errorFilesDeletion) => {
+    //     if (errorFilesDeletion) {
+    //         vscode.window.showErrorMessage(errorFilesDeletion.toString());
+    //         throw errorFilesDeletion;
+    //     }
+    // })
 };
